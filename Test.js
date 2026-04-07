@@ -32,7 +32,26 @@ document.getElementById('loginForm').addEventListener('submit', function(event) 
             .then(response => response.json())
             .then(data => {
                 console.log('Data API:', data);
-                // Tampilkan data hasil API dalam bentuk tabel
+                // --- FITUR PAGINATION & SEARCH ---
+                let allData = [];
+                if (data && Array.isArray(data.data)) {
+                    allData = data.data;
+                } else if (Array.isArray(data)) {
+                    allData = data;
+                } else if (typeof data === 'object' && data !== null) {
+                    allData = [data];
+                }
+                const pageSize = 5;
+                let currentPage = 1;
+                let filteredData = allData;
+
+                const loginMessage = document.getElementById('loginMessage');
+                const searchContainer = document.getElementById('searchContainer');
+                const searchInput = document.getElementById('searchInput');
+                const paginationDiv = document.getElementById('pagination');
+                searchContainer.style.display = 'block';
+                paginationDiv.style.display = 'block';
+
                 function createTableFromObject(obj) {
                     const table = document.createElement('table');
                     table.style.borderCollapse = 'collapse';
@@ -56,22 +75,58 @@ document.getElementById('loginForm').addEventListener('submit', function(event) 
                     }
                     return table;
                 }
-                loginMessage.appendChild(document.createElement('br'));
-                // Periksa jika data adalah objek dengan properti 'data' berupa array
-                if (data && Array.isArray(data.data)) {
-                    data.data.forEach(item => {
+
+                function renderTable(page = 1) {
+                    loginMessage.innerHTML = '';
+                    const start = (page - 1) * pageSize;
+                    const end = start + pageSize;
+                    const pageData = filteredData.slice(start, end);
+                    if (pageData.length === 0) {
+                        loginMessage.textContent = 'Data tidak ditemukan.';
+                        return;
+                    }
+                    pageData.forEach(item => {
                         loginMessage.appendChild(createTableFromObject(item));
                     });
-                } else if (Array.isArray(data) && data.length > 0 && typeof data[0] === 'object') {
-                    data.forEach(item => {
-                        loginMessage.appendChild(createTableFromObject(item));
-                    });
-                } else if (typeof data === 'object' && data !== null) {
-                    loginMessage.appendChild(createTableFromObject(data));
-                } else {
-                    // Jika data bukan objek/array objek, tampilkan apa adanya
-                    loginMessage.appendChild(document.createTextNode(data));
                 }
+
+                function renderPagination() {
+                    paginationDiv.innerHTML = '';
+                    const totalPages = Math.ceil(filteredData.length / pageSize);
+                    if (totalPages <= 1) return;
+                    for (let i = 1; i <= totalPages; i++) {
+                        const btn = document.createElement('button');
+                        btn.textContent = i;
+                        btn.style.margin = '0 4px';
+                        btn.style.padding = '6px 12px';
+                        btn.style.borderRadius = '4px';
+                        btn.style.border = '1px solid #b0c4de';
+                        btn.style.background = (i === currentPage) ? '#2a5298' : '#fff';
+                        btn.style.color = (i === currentPage) ? '#fff' : '#2a5298';
+                        btn.style.cursor = 'pointer';
+                        btn.onclick = () => {
+                            currentPage = i;
+                            renderTable(currentPage);
+                            renderPagination();
+                        };
+                        paginationDiv.appendChild(btn);
+                    }
+                }
+
+                searchInput.value = '';
+                searchInput.oninput = function() {
+                    const q = searchInput.value.trim().toLowerCase();
+                    filteredData = allData.filter(obj =>
+                        Object.values(obj).some(val => String(val).toLowerCase().includes(q))
+                    );
+                    currentPage = 1;
+                    renderTable(currentPage);
+                    renderPagination();
+                };
+
+                renderTable(currentPage);
+                renderPagination();
+                // --- END FITUR PAGINATION & SEARCH ---
             })
             .catch(error => {
                 loginMessage.appendChild(document.createElement('br'));
